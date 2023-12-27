@@ -36,10 +36,8 @@ public class StarMgsIO extends CordovaPlugin {
 
     private StarDeviceManager mStarDeviceManager;
     private Scale mScale;
-    private List<Map<String, String>> mDataMapList;
     private CallbackContext callback = null;
     private CallbackContext discoveryCallback = null;
-    private Map<String, String> deviceIDCache = new HashMap<>();
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -66,6 +64,7 @@ public class StarMgsIO extends CordovaPlugin {
 
     private void discover(CallbackContext callbackContext) {
         LOG.d(LOG_TAG, "discover");
+        stopDiscovery();
         this.discoveryCallback = callbackContext;
         cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
@@ -90,8 +89,17 @@ public class StarMgsIO extends CordovaPlugin {
         });
     }
 
+    private void stopDiscovery() {
+        LOG.d(LOG_TAG, "stopDiscovery wihtout callback");
+        this.discoveryCallback = null;
+        if(mStarDeviceManager != null){
+            mStarDeviceManager.stopScan();
+        }
+    }
+
     private void stopDiscovery(CallbackContext callbackContext) {
         LOG.d(LOG_TAG, "stopDiscovery");
+        this.discoveryCallback = null;
         if(mStarDeviceManager != null){
             mStarDeviceManager.stopScan();
         }
@@ -104,41 +112,51 @@ public class StarMgsIO extends CordovaPlugin {
         cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
                 LOG.d(LOG_TAG, "connect got thread");
-                ConnectionInfo connectionInfo = new ConnectionInfo.Builder()
-                    .setBleInfo(id)
-                    .build();
+                if(mScale != null){
+                    LOG.d(LOG_TAG, "mScale already has value. exiting");
+                    PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
+                    pluginResult.setKeepCallback(true);
+                    callbackContext.sendPluginResult(pluginResult);
+                } else {
+                    LOG.d(LOG_TAG, "starting device connection");
+                    ConnectionInfo connectionInfo = new ConnectionInfo.Builder()
+                        .setBleInfo(id)
+                        .build();
 
-                StarDeviceManager mStarDeviceManager = new StarDeviceManager(cordova.getActivity());
+                    StarDeviceManager mStarDeviceManager = new StarDeviceManager(cordova.getActivity());
 
-                mScale = mStarDeviceManager.createScale(connectionInfo);
-                mScale.connect(new ScaleCallback() {
-                    @Override
-                    public void onConnect(Scale scale, int status) {
-                        LOG.d(LOG_TAG, "ScaleCallback onConnect");
-                        mStarDeviceManager.stopScan();
-                        sendConnectionUpdate(scale, status);
-                    }
-                    @Override
-                    public void onReadScaleData(Scale scale, ScaleData scaleData) {
-                        LOG.d(LOG_TAG, "ScaleCallback onReadScaleData");
-                        JSONObject readScaleDataJson = getWeightInfo(scaleData);
-                        try {
-                            readScaleDataJson.put("update_type", "weight_update");
-                        } catch (JSONException e) {
-                            LOG.e(LOG_TAG, e.getMessage(), e);
+                    LOG.d(LOG_TAG, "createScale");
+                    mScale = mStarDeviceManager.createScale(connectionInfo);
+                    LOG.d(LOG_TAG, "connect");
+                    mScale.connect(new ScaleCallback() {
+                        @Override
+                        public void onConnect(Scale scale, int status) {
+                            LOG.d(LOG_TAG, "ScaleCallback onConnect");
+                            stopDiscovery();
+                            sendConnectionUpdate(scale, status);
                         }
-                        sendWeightUpdate(readScaleDataJson, true);
-                    }
-                    @Override
-                    public void onDisconnect(Scale scale, int status) {
-                        LOG.d(LOG_TAG, "ScaleCallback onDisconnect");
-                        mScale = null;
-                        sendDisconnectionUpdate(scale, status);
-                    }
-                });
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
-                pluginResult.setKeepCallback(true);
-                callbackContext.sendPluginResult(pluginResult);
+                        @Override
+                        public void onReadScaleData(Scale scale, ScaleData scaleData) {
+                            LOG.d(LOG_TAG, "ScaleCallback onReadScaleData");
+                            JSONObject readScaleDataJson = getWeightInfo(scaleData);
+                            try {
+                                readScaleDataJson.put("update_type", "weight_update");
+                            } catch (JSONException e) {
+                                LOG.e(LOG_TAG, e.getMessage(), e);
+                            }
+                            sendWeightUpdate(readScaleDataJson, true);
+                        }
+                        @Override
+                        public void onDisconnect(Scale scale, int status) {
+                            LOG.d(LOG_TAG, "ScaleCallback onDisconnect");
+                            mScale = null;
+                            sendDisconnectionUpdate(scale, status);
+                        }
+                    });
+                    PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
+                    pluginResult.setKeepCallback(true);
+                    callbackContext.sendPluginResult(pluginResult);
+                }
             }
         });
     }

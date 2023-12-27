@@ -1,6 +1,6 @@
 {
     "name": "cordova-plugin-starmgsio",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Cordova plugin for interacting with Star Micronics bluetooth scales",
     "keywords": [
         "cordova",
