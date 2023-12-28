@@ -38,6 +38,8 @@ public class StarMgsIO extends CordovaPlugin {
     private Scale mScale;
     private CallbackContext callback = null;
     private CallbackContext discoveryCallback = null;
+    private double lastWeight = 0;
+    private String lastUnit = null;
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -141,10 +143,18 @@ public class StarMgsIO extends CordovaPlugin {
                             JSONObject readScaleDataJson = getWeightInfo(scaleData);
                             try {
                                 readScaleDataJson.put("update_type", "weight_update");
+                                if(readScaleDataJson.has("weight") && readScaleDataJson.has("unit")){
+                                    double newWeight = readScaleDataJson.getDouble("weight");
+                                    String newUnit = readScaleDataJson.getString("unit");
+                                    if(lastWeight != newWeight || newUnit != lastUnit){
+                                        lastWeight = readScaleDataJson.getDouble("weight");
+                                        lastUnit = readScaleDataJson.getString("unit");
+                                        sendWeightUpdate(readScaleDataJson, true);
+                                    }
+                                }
                             } catch (JSONException e) {
                                 LOG.e(LOG_TAG, e.getMessage(), e);
                             }
-                            sendWeightUpdate(readScaleDataJson, true);
                         }
                         @Override
                         public void onDisconnect(Scale scale, int status) {
