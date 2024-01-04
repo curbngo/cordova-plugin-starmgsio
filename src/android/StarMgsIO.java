@@ -143,10 +143,11 @@ public class StarMgsIO extends CordovaPlugin {
                             JSONObject readScaleDataJson = getWeightInfo(scaleData);
                             try {
                                 readScaleDataJson.put("update_type", "weight_update");
-                                if(readScaleDataJson.has("weight") && readScaleDataJson.has("unit")){
+                                if(readScaleDataJson.has("weight") && readScaleDataJson.has("unit") && readScaleDataJson.has("status")){
+                                    String status = readScaleDataJson.getString("status");
                                     double newWeight = readScaleDataJson.getDouble("weight");
                                     String newUnit = readScaleDataJson.getString("unit");
-                                    if(lastWeight != newWeight || newUnit != lastUnit){
+                                    if(lastWeight != newWeight || !newUnit.equals(lastUnit) && status.equals("STABLE")){
                                         lastWeight = readScaleDataJson.getDouble("weight");
                                         lastUnit = readScaleDataJson.getString("unit");
                                         sendWeightUpdate(readScaleDataJson, true);
