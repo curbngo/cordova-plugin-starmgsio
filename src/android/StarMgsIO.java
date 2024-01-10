@@ -38,7 +38,7 @@ public class StarMgsIO extends CordovaPlugin {
     private Scale mScale;
     private CallbackContext callback = null;
     private CallbackContext discoveryCallback = null;
-    private double lastWeight = 0;
+    private Double lastWeight = null;
     private String lastUnit = null;
 
     @Override
@@ -136,18 +136,21 @@ public class StarMgsIO extends CordovaPlugin {
                             LOG.d(LOG_TAG, "ScaleCallback onConnect");
                             stopDiscovery();
                             sendConnectionUpdate(scale, status);
+                            if(status == Scale.CONNECT_SUCCESS){
+                                mScale.updateOutputConditionSetting(ScaleOutputConditionSetting.ContinuousOutputAtStableTimes);
+                            }
                         }
                         @Override
                         public void onReadScaleData(Scale scale, ScaleData scaleData) {
-                            LOG.d(LOG_TAG, "ScaleCallback onReadScaleData");
                             JSONObject readScaleDataJson = getWeightInfo(scaleData);
+                            LOG.d(LOG_TAG, "ScaleCallback onReadScaleData " + readScaleDataJson.toString());
                             try {
                                 readScaleDataJson.put("update_type", "weight_update");
-                                if(readScaleDataJson.has("weight") && readScaleDataJson.has("unit") && readScaleDataJson.has("status")){
+                                if(readScaleDataJson.has("weight") && readScaleDataJson.has("unit")){
                                     String status = readScaleDataJson.getString("status");
                                     double newWeight = readScaleDataJson.getDouble("weight");
                                     String newUnit = readScaleDataJson.getString("unit");
-                                    if(lastWeight != newWeight || !newUnit.equals(lastUnit) && status.equals("STABLE")){
+                                    if(lastWeight == null || lastWeight != newWeight || !newUnit.equals(lastUnit)){
                                         lastWeight = readScaleDataJson.getDouble("weight");
                                         lastUnit = readScaleDataJson.getString("unit");
                                         sendWeightUpdate(readScaleDataJson, true);
@@ -249,6 +252,7 @@ public class StarMgsIO extends CordovaPlugin {
             if (!connectSuccess) {
                 mScale = null;
             }
+            LOG.d(LOG_TAG, "connection update " + result.toString());
         } catch (JSONException e) {
             try {
                 result.put("error", "Error occurred while handling callback: " + e.getMessage());
@@ -297,6 +301,7 @@ public class StarMgsIO extends CordovaPlugin {
             if (!connectSuccess) {
                 mScale = null;
             }
+            LOG.d(LOG_TAG, "disconnection update " + result.toString());
         } catch (JSONException e) {
             try {
                 result.put("error", "Error occurred while handling callback: " + e.getMessage());
